@@ -489,3 +489,159 @@ entry/src/ohosTest/ets/test/app.test.ets
 - 分布式设备发现、认证和数据同步的基本流程
 - 业务功能扩展如何与 Stage 模型中的状态管理和生命周期配合
 - `ExtensionAbility` 虽未在当前项目中实现，但可作为后续扩展桌面卡片、后台服务等能力的方向
+
+## 十一、任务 3：分布式计算器历史记录功能扩展
+
+本次新增“计算器历史记录”功能，目标是让本地设备完成计算后生成历史记录，并通过分布式 KVStore 同步到远端设备。远端设备被拉起后，不仅能够继续接收表达式同步，也能够查看历史记录列表，并点击某条历史记录将表达式和结果载入到当前计算器界面。
+
+### 1. 功能需求
+
+历史记录功能主要包含三点：
+
+- 本地计算完成后记录表达式、结果和记录时间。
+- 远端 Ability 被 `Want` 拉起后，主设备主动把已有历史记录同步给远端。
+- 远端设备可以打开历史记录面板，点击历史项后恢复对应表达式，并显示历史结果作为预览。
+
+### 2. 页面状态与历史数据结构
+
+代码位置：
+
+```text
+entry/src/main/ets/pages/Index.ets
+```
+
+页面新增了历史记录状态：
+
+```ts
+@State isHistoryVisible: boolean = false
+@State historyList: HistoryRecord[] = []
+```
+
+其中 `HistoryRecord` 用于描述一条历史记录：
+
+```ts
+class HistoryRecord {
+  expression: string
+  result: string
+  time: string
+}
+```
+
+每条记录保存原表达式、计算结果和生成时间。为了避免同步数据无限增长，当前只保留最近 20 条记录：
+
+```ts
+const MAX_HISTORY_COUNT: number = 20
+```
+
+### 3. 历史记录生成逻辑
+
+当用户点击 `=`、平方、百分号或开方这类会直接得到最终结果的按钮时，页面会调用：
+
+```ts
+addHistory(expression, result)
+```
+
+该方法会把最新记录插入到历史列表头部，并去掉相同表达式和相同结果的重复项。随后调用：
+
+```ts
+syncHistory()
+```
+
+将历史记录序列化为 JSON 字符串并写入分布式 KVStore。
+
+### 4. 分布式历史同步
+
+原项目已经使用 `dataChange` 作为表达式同步 key。本次没有复用该 key，而是新增独立 key：
+
+```ts
+const HISTORY_CHANGE: string = 'historyChange'
+```
+
+这样可以避免历史记录同步影响原有表达式协同计算逻辑。历史同步仍然复用 `KvStoreModel.put`：
+
+```ts
+this.kvStoreModel.put(HISTORY_CHANGE, JSON.stringify(this.historyList))
+```
+
+由于 `KvStoreModel.put` 内部已经执行：
+
+```ts
+this.kvStore.sync(deviceIds, distributedData.SyncMode.PUSH_PULL, 1000)
+```
+
+所以历史记录写入后会通过 PUSH_PULL 模式同步给可用远端设备。
+
+远端设备在 `aboutToAppear` 中额外监听 `historyChange`：
+
+```ts
+this.kvStoreModel.setOnMessageReceivedListener(context, HISTORY_CHANGE, (value: string) => {
+  this.historyList = this.parseHistory(value)
+})
+```
+
+收到远端历史 JSON 后，页面会解析并更新 `historyList`，从而刷新历史面板。
+
+### 5. 远端拉起后的主动补发
+
+代码位置：
+
+```text
+entry/src/main/ets/common/TitleBarComponent.ets
+```
+
+原来远端 Ability 启动成功后只会回调 `DATA_CHANGE`，用于同步当前表达式。本次在启动成功后追加回调：
+
+```ts
+this.startAbilityCallBack(DATA_CHANGE)
+this.startAbilityCallBack(HISTORY_CHANGE)
+```
+
+`Index.ets` 中的 `startAbilityCallBack` 收到 `HISTORY_CHANGE` 后会调用 `syncHistory()`，把主设备当前已有历史立即推送给刚被拉起的远端设备。这样即使历史记录是在远端启动之前产生的，远端启动后也能收到完整历史。
+
+### 6. 历史记录查看与载入
+
+标题栏新增“历史/关闭历史”入口：
+
+```text
+entry/src/main/ets/common/TitleBarComponent.ets
+```
+
+该入口通过 `@Link isHistoryVisible` 控制主页面历史面板显示状态。历史面板中每条记录展示：
+
+```text
+表达式
+= 结果
+记录时间
+```
+
+用户点击历史项时调用：
+
+```ts
+loadHistory(item)
+```
+
+该方法会恢复：
+
+```ts
+this.expression = item.expression
+this.result = item.result
+```
+
+因此远端设备不仅能够查看主设备同步过来的历史记录，也能够把某条历史记录载入当前计算器，继续编辑或重新计算。
+
+### 7. 与原有分布式能力的关系
+
+本次扩展没有新增新的分布式框架，而是继续复用当前项目已有的 Stage 模型与 KVStore 能力：
+
+- `UIAbility` 仍然负责承载主页面。
+- `Want` 仍然负责远端 Ability 拉起。
+- `Context` 仍然用于创建 KVStore 和申请分布式数据同步权限。
+- `KvStoreModel` 继续负责跨设备数据写入、监听和同步。
+
+区别在于，原项目只同步当前表达式，本次新增了历史记录这种列表型数据。实现时通过独立 key 将“当前表达式状态”和“历史记录状态”拆开，保证两个同步通道互不干扰。
+
+### 8. 本次任务结论
+
+通过历史记录扩展可以看到，分布式 KVStore 不只适合保存单个表达式，也可以保存序列化后的业务列表数据。只要为不同业务状态设计独立 key，并在远端页面中注册对应监听，就可以把本地 UI 状态扩展为跨设备共享状态。
+
+本次功能使计算器从“同步当前输入”扩展为“同步历史上下文”。远端设备被拉起后，能够拿到主设备已有历史，并通过历史面板载入记录，说明 `Want + UIAbility + KVStore` 的组合可以支持更完整的跨设备协同使用场景。

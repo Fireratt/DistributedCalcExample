@@ -21,6 +21,7 @@ import Want from '@ohos.app.ability.Want';
 
 const TAG: string = 'TitleBar'
 const DATA_CHANGE: string = 'dataChange'
+const HISTORY_CHANGE: string = 'historyChange'
 const EXIT: string = 'exit'
 const DEVICE_DISCOVERY_RANGE: number = 1000
 
@@ -30,6 +31,7 @@ export struct TitleBarComponent {
   @State selectedIndex: number | undefined = 0
   @StorageLink('deviceList') deviceList: Array<deviceManager.DeviceBasicInfo> = []
   @Link isDistributed: boolean
+  @Link isHistoryVisible: boolean
   isShow: boolean = false
   startAbilityCallBack: (key: string) => void = () => {
   }
@@ -107,6 +109,7 @@ export struct TitleBarComponent {
     context.startAbility(want).then((data) => {
       Logger.info(TAG, `start ability finished: ${JSON.stringify(data)}`)
       this.startAbilityCallBack(DATA_CHANGE)
+      this.startAbilityCallBack(HISTORY_CHANGE)
     })
   }
 
@@ -177,6 +180,14 @@ export struct TitleBarComponent {
         .fontSize('28px')
         .margin({ left: 12 })
       Blank().layoutWeight(1)
+      Text(this.isHistoryVisible ? '关闭历史' : '历史')
+        .id('historyToggle')
+        .fontSize('16fp')
+        .fontColor('#007DFF')
+        .margin({ right: 16 })
+        .onClick(() => {
+          this.isHistoryVisible = !this.isHistoryVisible
+        })
       if (!this.isShow) {
         Image($r("app.media.ic_hop_normal1"))
           .id('selectDevice')

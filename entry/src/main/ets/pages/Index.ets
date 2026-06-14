@@ -28,6 +28,20 @@ import mediaquery from '@ohos.mediaquery';
 const TAG: string = 'Index'
 const EXIT: string = 'exit'
 const DATA_CHANGE: string = 'dataChange'
+const HISTORY_CHANGE: string = 'historyChange'
+const MAX_HISTORY_COUNT: number = 20
+
+class HistoryRecord {
+  expression: string
+  result: string
+  time: string
+
+  constructor(expression: string, result: string, time: string) {
+    this.expression = expression
+    this.result = result
+    this.time = time
+  }
+}
 
 @Entry
 @Component
@@ -38,6 +52,8 @@ struct Index {
   @State @Watch('dataChange') expression: string = ''
   @State isDistributed: boolean = false
   @State isShow: boolean = false
+  @State isHistoryVisible: boolean = false
+  @State historyList: HistoryRecord[] = []
   private listener = mediaQuery.matchMediaSync('screen and (min-aspect-ratio: 1.5) or (orientation: landscape)')
   private kvStoreModel: KvStoreModel = new KvStoreModel()
   private remoteDeviceModel: RemoteDeviceModel = new RemoteDeviceModel()
@@ -84,6 +100,66 @@ struct Index {
   getExpressionResult(expression: string): string {
     const calculableExpression = this.getExpressionForCalc(expression)
     return calculableExpression ? calc(calculableExpression) : ''
+  }
+
+  formatTwoDigits(value: number): string {
+    return value < 10 ? `0${value}` : value.toString()
+  }
+
+  formatHistoryTime(): string {
+    const date = new Date()
+    const hour = this.formatTwoDigits(date.getHours())
+    const minute = this.formatTwoDigits(date.getMinutes())
+    return `${hour}:${minute}`
+  }
+
+  syncHistory() {
+    this.kvStoreModel.put(HISTORY_CHANGE, JSON.stringify(this.historyList))
+  }
+
+  addHistory(expression: string, result: string) {
+    if (!expression || !result) {
+      return
+    }
+    let list: HistoryRecord[] = [new HistoryRecord(expression, result, this.formatHistoryTime())]
+    for (let index = 0; index < this.historyList.length && list.length < MAX_HISTORY_COUNT; index++) {
+      const item = this.historyList[index]
+      if (item.expression !== expression || item.result !== result) {
+        list.push(item)
+      }
+    }
+    this.historyList = list
+    this.syncHistory()
+  }
+
+  loadHistory(item: HistoryRecord) {
+    Logger.info(TAG, `loadHistory: expression=${item.expression}, result=${item.result}`)
+    this.expression = item.expression
+    this.result = item.result
+    this.isHistoryVisible = false
+  }
+
+  parseHistory(value: string): HistoryRecord[] {
+    if (!value) {
+      return []
+    }
+    try {
+      const list = JSON.parse(value) as HistoryRecord[]
+      if (!Array.isArray(list)) {
+        return []
+      }
+      let result: HistoryRecord[] = []
+      for (let index = 0; index < list.length && result.length < MAX_HISTORY_COUNT; index++) {
+        const item = list[index]
+        if (item.expression && item.result) {
+          result.push(new HistoryRecord(item.expression, item.result, item.time ? item.time : ''))
+        }
+      }
+      return result
+    } catch (err) {
+      Logger.error(TAG, `parseHistory failed: ${JSON.stringify(err)}`)
+      return []
+    }
   }
 
   isGroupingBalanced(expression: string): boolean {
@@ -174,6 +250,7 @@ struct Index {
       if (result === '' || result === undefined) {
         return;
       }
+      this.addHistory(expression, result);
       this.expression = result;
       this.result = '';
     } else if (value === '%') {
@@ -185,6 +262,7 @@ struct Index {
       if (result === '' || result === undefined) {
         return;
       }
+      this.addHistory(expression, result);
       this.expression = result;
       this.result = '';
     } else if (value === 'R') {
@@ -196,6 +274,7 @@ struct Index {
       if (result === '' || result === undefined) {
         return;
       }
+      this.addHistory(expression, result);
       this.expression = result;
       this.result = '';
     } else if (value === '(' || value === ')') {
@@ -220,8 +299,10 @@ struct Index {
       }
       this.expression += value;
     } else if (value === '=') {
-      this.result = this.getExpressionResult(this.expression);
+      const expression = this.getExpressionForCalc(this.expression);
+      this.result = expression ? calc(expression) : '';
       if (this.result !== '' && this.result !== undefined) {
+        this.addHistory(expression, this.result);
         this.expression = this.result;
         this.result = '';
       }
@@ -285,6 +366,10 @@ struct Index {
         }
       }
     })
+    this.kvStoreModel.setOnMessageReceivedListener(context, HISTORY_CHANGE, (value: string) => {
+      Logger.info(TAG, `HISTORY_CHANGE: ${value}`)
+      this.historyList = this.parseHistory(value)
+    })
   }
 
   startAbilityCallBack = (key: string) => {
@@ -292,9 +377,75 @@ struct Index {
     if (DATA_CHANGE === key) {
       this.kvStoreModel.put(DATA_CHANGE, this.expression)
     }
+    if (HISTORY_CHANGE === key) {
+      this.syncHistory()
+    }
     if (EXIT === key) {
       this.kvStoreModel.put(DATA_CHANGE, EXIT)
     }
+  }
+
+  @Builder
+  HistoryPanel() {
+    Column() {
+      Row() {
+        Text('历史记录')
+          .fontSize('18fp')
+          .fontWeight(500)
+        Blank()
+        Text(`${this.historyList.length}`)
+          .fontSize('14fp')
+          .fontColor('#666666')
+      }
+      .width('90%')
+      .height('32vp')
+      if (this.historyList.length === 0) {
+        Text('暂无历史')
+          .id('historyEmpty')
+          .fontSize('16fp')
+          .fontColor('#999999')
+          .height('64vp')
+      } else {
+        List() {
+          ForEach(this.historyList, (item: HistoryRecord, index: number) => {
+            ListItem() {
+              Row() {
+                Column() {
+                  Text(item.expression)
+                    .fontSize('16fp')
+                    .fontColor('#333333')
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  Text(`= ${item.result}`)
+                    .fontSize('14fp')
+                    .fontColor('#666666')
+                    .maxLines(1)
+                    .textOverflow({ overflow: TextOverflow.Ellipsis })
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+                Text(item.time)
+                  .fontSize('12fp')
+                  .fontColor('#999999')
+              }
+              .id(`history_${index}`)
+              .width('100%')
+              .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+              .backgroundColor('#F7F8FA')
+              .borderRadius(8)
+              .onClick(() => {
+                this.loadHistory(item)
+              })
+            }
+            .margin({ bottom: 6 })
+          })
+        }
+        .width('90%')
+        .height(this.isLand ? '72%' : '75%')
+      }
+    }
+    .width('100%')
+    .height(this.isLand ? '32%' : '34%')
   }
 
   build() {
@@ -304,9 +455,13 @@ struct Index {
         startAbilityCallBack: this.startAbilityCallBack,
         remoteDeviceModel: this.remoteDeviceModel,
         isDistributed: $isDistributed,
+        isHistoryVisible: $isHistoryVisible,
         isShow: this.isShow
       })
       if (this.isLand) {
+        if (this.isHistoryVisible) {
+          this.HistoryPanel()
+        }
         Row() {
           InputComponent({ isLand: this.isLand, result: $result, expression: $expression })
           ButtonComponentHorizontal({ onInputValue: this.onInputValue })
@@ -315,7 +470,11 @@ struct Index {
         .layoutWeight(1)
       } else {
         Column() {
-          InputComponent({ isLand: this.isLand, result: $result, expression: $expression })
+          if (this.isHistoryVisible) {
+            this.HistoryPanel()
+          } else {
+            InputComponent({ isLand: this.isLand, result: $result, expression: $expression })
+          }
           ButtonComponent({ onInputValue: this.onInputValue })
         }
         .width('100%')
