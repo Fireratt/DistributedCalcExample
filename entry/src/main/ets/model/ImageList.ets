@@ -45,6 +45,7 @@ export function obtainImgV(): Record<string, string | Resource>[] {
     [
       { 'image': $r('app.media.ic_cal_delete'), 'value': 'D' },
       { 'image': $r('app.media.ic_cal_delete_c'), 'value': 'C' },
+      { 'image': $r('app.media.ic_cal_square'), 'value': 'S' },
       { 'image': $r('app.media.ic_cal_equal'), 'value': '=' }
     ];
   return list;
@@ -57,6 +58,17 @@ export function obtainImgVs(): Record<string, string | Resource>[] {
       { 'image': $r('app.media.ic_cal_multiply'), 'value': '*' },
       { 'image': $r('app.media.ic_cal_minus'), 'value': '-' },
       { 'image': $r('app.media.ic_cal_plus'), 'value': '+' }
+    ];
+  return list;
+}
+
+export function obtainImgFunctions(): Record<string, string | Resource>[] {
+  let list: Record<string, string | Resource>[] =
+    [
+      { 'image': $r('app.media.ic_cal_percent_blue'), 'value': '%' },
+      { 'image': $r('app.media.ic_cal_left_parenthesis'), 'value': '(' },
+      { 'image': $r('app.media.ic_cal_right_parenthesis'), 'value': ')' },
+      { 'image': $r('app.media.ic_cal_sqrt'), 'value': 'R' }
     ];
   return list;
 }
@@ -86,6 +98,7 @@ export function obtainImg(): Record<string, string | Resource>[] {
   let list: Record<string, string | Resource>[] = [
     { 'image': $r('app.media.ic_cal_delete'), 'value': 'D' },
     { 'image': $r('app.media.ic_cal_delete_c'), 'value': 'C' },
+    { 'image': $r('app.media.ic_cal_square'), 'value': 'S' },
     { 'image': $r('app.media.ic_cal_equal'), 'value': '=' }
   ];
   return list;

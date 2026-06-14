@@ -60,14 +60,25 @@ function calcSuffixExpression(expression) {
       const firstStackElement = numberStack.pop()
       const secondStackElement = numberStack.pop()
       const result = OPERATORHANDLERS[element](secondStackElement, firstStackElement)
-      if (result.length > 15) {
-        numberStack.push(parseFloat(result).toExponential())
-      } else {
-        numberStack.push(result)
-      }
+      numberStack.push(formatResult(result))
     }
   }
   return numberStack[0]
+}
+
+function formatResult(result: string): string {
+  if (result.length > 15) {
+    return parseFloat(result).toExponential()
+  }
+  return result
+}
+
+function trimTrailingZeros(result: string): string {
+  if (result.indexOf('.') === -1 || result.indexOf('e') !== -1 || result.indexOf('E') !== -1) {
+    return result
+  }
+  const trimResult = result.replace(/\.?0+$/, '')
+  return trimResult === '-0' ? '0' : trimResult
 }
 
 function toSuffixExpression(expression) {
@@ -81,12 +92,11 @@ function toSuffixExpression(expression) {
       continue
     }
     if (element === ')') {
-      if (operatorStack.length) {
-        let operator = operatorStack.pop()
-        while (operator !== '(') {
-          suffixExpression.push(operator)
-          operator = operatorStack.pop()
-        }
+      while (operatorStack.length && operatorStack[operatorStack.length - 1] !== '(') {
+        suffixExpression.push(operatorStack.pop())
+      }
+      if (operatorStack.length && operatorStack[operatorStack.length - 1] === '(') {
+        operatorStack.pop()
       }
       continue
     }
@@ -96,7 +106,8 @@ function toSuffixExpression(expression) {
       } else {
         topOperator = operatorStack[operatorStack.length - 1]
         if (!isGrouping(topOperator) && !isPrioritized(element, topOperator)) {
-          while (operatorStack.length && !isPrioritized(element, operatorStack[operatorStack.length - 1])) {
+          while (operatorStack.length && !isGrouping(operatorStack[operatorStack.length - 1]) &&
+            !isPrioritized(element, operatorStack[operatorStack.length - 1])) {
             suffixExpression.push(operatorStack.pop())
           }
         }
@@ -151,7 +162,7 @@ function isPrioritized(firstOperator, secondOperator) {
   return OPERATORLEVELS[firstOperator] > OPERATORLEVELS[secondOperator]
 }
 
-export function isOperator(operator) {
+export function isOperator(operator: string): boolean {
   return (
     operator === '+' || operator === '-' || operator === '*' || operator === '/'
   )
@@ -165,8 +176,37 @@ function isGrouping(operator) {
   return operator === '(' || operator === ')'
 }
 
-export function calc(inputContent) {
+export function calc(inputContent: string): string {
   const infixExpression = parseInfixExpression(inputContent)
   const suffixExpression = toSuffixExpression(infixExpression)
   return calcSuffixExpression(suffixExpression)
+}
+
+export function square(inputContent: string): string {
+  const result = calc(inputContent)
+  if (result === '' || result === undefined) {
+    return ''
+  }
+  const operand = trimTrailingZeros(result)
+  return trimTrailingZeros(formatResult(OPERATORHANDLERS['*'](operand, operand)))
+}
+
+export function percent(inputContent: string): string {
+  const result = calc(inputContent)
+  if (result === '' || result === undefined) {
+    return ''
+  }
+  return trimTrailingZeros(formatResult(OPERATORHANDLERS['/'](result, '100')))
+}
+
+export function squareRoot(inputContent: string): string {
+  const result = calc(inputContent)
+  if (result === '' || result === undefined) {
+    return ''
+  }
+  const numberResult = parseFloat(result)
+  if (numberResult < 0 || isNaN(numberResult)) {
+    return ''
+  }
+  return trimTrailingZeros(formatResult(Math.sqrt(numberResult).toString()))
 }

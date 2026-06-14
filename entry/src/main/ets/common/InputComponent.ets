@@ -16,7 +16,7 @@
 export struct InputComponent {
   @Link result: string
   @Link expression: string
-  private isLand: boolean = false
+  isLand: boolean = false
 
   build() {
     Stack({ alignContent: this.isLand ? Alignment.BottomStart : Alignment.TopEnd }) {

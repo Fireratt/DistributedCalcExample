@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { obtainImgVertical, obtainImgV, obtainImgVs } from '../model/ImageList'
+import { obtainImgFunctions, obtainImgVertical, obtainImgV, obtainImgVs } from '../model/ImageList'
 
 interface ImageList {
   image: Resource
@@ -21,7 +21,7 @@ interface ImageList {
 
 @Component
 export struct ButtonComponent {
-  private onInputValue: (result: string) => void = () => {
+  onInputValue: (result: string) => void = () => {
   }
 
   build() {
@@ -39,15 +39,37 @@ export struct ButtonComponent {
             .width('100%')
             .height('100%')
             .borderRadius('16px')
-            .backgroundColor(index !== undefined && index < 2 ? '#33007DFF' : '#FF006CDE')
+            .backgroundColor(item.value === '=' ? '#FF006CDE' : '#33007DFF')
             .onClick(() => {
               this.onInputValue(item.value)
             })
           }
           .rowStart(index !== undefined ? index : 0)
-          .rowEnd(index !== undefined && index === 2 ? (index !== undefined ? index + 1 : 0) : (index !== undefined ? index : 0))
+          .rowEnd(index !== undefined ? index : 0)
           .columnStart(4)
           .columnEnd(4)
+        })
+        ForEach(obtainImgFunctions(), (item: ImageList, index: number | undefined) => {
+          GridItem() {
+            Button({ type: ButtonType.Normal }) {
+              Image(item.image)
+                .width('45%')
+                .height('35%')
+                .objectFit(ImageFit.Cover)
+            }
+            .id(item.value)
+            .width('100%')
+            .height('100%')
+            .borderRadius('16px')
+            .backgroundColor('#33007DFF')
+            .onClick(() => {
+              this.onInputValue(item.value)
+            })
+          }
+          .rowStart(index !== undefined ? index : 0)
+          .rowEnd(index !== undefined ? index : 0)
+          .columnStart(5)
+          .columnEnd(5)
         })
         ForEach(obtainImgVs(), (item: ImageList, index) => {
           GridItem() {
@@ -94,7 +116,7 @@ export struct ButtonComponent {
       }
       .columnsGap(5)
       .rowsGap(5)
-      .columnsTemplate('1fr 1fr 1fr 1fr 1fr')
+      .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr')
       .rowsTemplate('1fr 1fr 1fr 1fr ')
     }
     .padding(10)

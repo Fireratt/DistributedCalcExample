@@ -20,7 +20,7 @@ import { InputComponent } from '../common/InputComponent'
 import { KvStoreModel } from '../model/KvStoreModel'
 import { RemoteDeviceModel } from '../model/RemoteDeviceModel'
 import { TitleBarComponent } from '../common/TitleBarComponent'
-import { isOperator, calc } from '../model/Calculator'
+import { isOperator, calc, percent, square, squareRoot } from '../model/Calculator'
 import abilityAccessCtrl from '@ohos.abilityAccessCtrl'
 import common from '@ohos.app.ability.common';
 import mediaquery from '@ohos.mediaquery';
@@ -65,6 +65,92 @@ struct Index {
     )
   }
 
+  getCalculableExpression(): string {
+    return this.result ? this.result : this.getExpressionForCalc(this.expression)
+  }
+
+  getExpressionForCalc(expression: string): string {
+    let calculableExpression = expression
+    if (calculableExpression && isOperator(calculableExpression.charAt(calculableExpression.length - 1))) {
+      calculableExpression = calculableExpression.substring(0, calculableExpression.length - 1)
+    }
+    if (!calculableExpression || !this.isGroupingBalanced(calculableExpression) ||
+      calculableExpression.charAt(calculableExpression.length - 1) === '(') {
+      return ''
+    }
+    return calculableExpression
+  }
+
+  getExpressionResult(expression: string): string {
+    const calculableExpression = this.getExpressionForCalc(expression)
+    return calculableExpression ? calc(calculableExpression) : ''
+  }
+
+  isGroupingBalanced(expression: string): boolean {
+    let count = 0
+    for (let index = 0; index < expression.length; index++) {
+      if (expression.charAt(index) === '(') {
+        count++
+      } else if (expression.charAt(index) === ')') {
+        count--
+        if (count < 0) {
+          return false
+        }
+      }
+    }
+    return count === 0
+  }
+
+  canAddRightGrouping(): boolean {
+    const last = this.expression.charAt(this.expression.length - 1)
+    if (!this.expression || last === '(' || isOperator(last)) {
+      return false
+    }
+    return this.getUnclosedLeftGroupingCount() > 0
+  }
+
+  getUnclosedLeftGroupingCount(): number {
+    let leftCount = 0
+    let rightCount = 0
+    for (let index = 0; index < this.expression.length; index++) {
+      if (this.expression.charAt(index) === '(') {
+        leftCount++
+      } else if (this.expression.charAt(index) === ')') {
+        rightCount++
+      }
+    }
+    return leftCount - rightCount
+  }
+
+  canWrapExpressionWithGrouping(): boolean {
+    const last = this.expression.charAt(this.expression.length - 1)
+    return !!this.expression && !isOperator(last) && last !== '(' && last !== ')' &&
+      this.getUnclosedLeftGroupingCount() === 0 && this.getExpressionForCalc(this.expression) !== ''
+  }
+
+  handleGrouping(value: string) {
+    if (value === '(') {
+      const last = this.expression.charAt(this.expression.length - 1)
+      if (!this.expression || isOperator(last) || last === '(') {
+        this.expression += value
+        this.result = ''
+      } else if (last === ')' || this.getExpressionForCalc(this.expression) !== '') {
+        this.expression += '*' + value
+        this.result = ''
+      }
+      return
+    }
+    if (this.canAddRightGrouping()) {
+      this.expression += value
+      this.result = this.getExpressionResult(this.expression)
+      return
+    }
+    if (this.canWrapExpressionWithGrouping()) {
+      this.expression = '(' + this.expression + ')'
+      this.result = this.getExpressionResult(this.expression)
+    }
+  }
+
   onInputValue = (value: string) => {
     Logger.info(TAG, `this.isLand=${this.isLand}`);
     Logger.info(TAG, `onInputValue=${value}`);
@@ -74,11 +160,46 @@ struct Index {
       return;
     } else if (value === 'D') {
       this.expression = this.expression.substring(0, this.expression.length - 1);
-      this.result = this.result = calc(this.expression);
+      this.result = this.getExpressionResult(this.expression);
       if (!this.expression.length) {
         this.result = '';
         Logger.info(TAG, `handleBackspace`);
       }
+    } else if (value === 'S') {
+      const expression = this.getCalculableExpression();
+      if (!expression) {
+        return;
+      }
+      const result: string = square(expression);
+      if (result === '' || result === undefined) {
+        return;
+      }
+      this.expression = result;
+      this.result = '';
+    } else if (value === '%') {
+      const expression = this.getCalculableExpression();
+      if (!expression) {
+        return;
+      }
+      const result: string = percent(expression);
+      if (result === '' || result === undefined) {
+        return;
+      }
+      this.expression = result;
+      this.result = '';
+    } else if (value === 'R') {
+      const expression = this.getCalculableExpression();
+      if (!expression) {
+        return;
+      }
+      const result: string = squareRoot(expression);
+      if (result === '' || result === undefined) {
+        return;
+      }
+      this.expression = result;
+      this.result = '';
+    } else if (value === '(' || value === ')') {
+      this.handleGrouping(value);
     } else if (isOperator(value)) {
       Logger.info(TAG, `value=${value}`);
       let size = this.expression.length;
@@ -86,6 +207,12 @@ struct Index {
         const last = this.expression.charAt(size - 1);
         if (isOperator(last)) {
           this.expression = this.expression.substring(0, this.expression.length - 1);
+          if ((!this.expression || this.expression.charAt(this.expression.length - 1) === '(') &&
+            (value === '*' || value === '/')) {
+            return;
+          }
+        } else if (last === '(' && (value === '*' || value === '/')) {
+          return;
         }
       }
       if (!this.expression && (value === '*' || value === '/')) {
@@ -93,19 +220,25 @@ struct Index {
       }
       this.expression += value;
     } else if (value === '=') {
-      this.result = calc(this.expression);
+      this.result = this.getExpressionResult(this.expression);
       if (this.result !== '' && this.result !== undefined) {
         this.expression = this.result;
         this.result = '';
       }
     } else {
+      if (this.expression.charAt(this.expression.length - 1) === ')') {
+        this.expression += '*' + value;
+        this.result = this.getExpressionResult(this.expression);
+        return;
+      }
       const hasSymbol: boolean = this.expression.indexOf('+') !== -1 || this.expression.indexOf('-') !== -1 ||
-        this.expression.indexOf('*') !== -1 || this.expression.indexOf('/') !== -1;
+        this.expression.indexOf('*') !== -1 || this.expression.indexOf('/') !== -1 ||
+        this.expression.indexOf('(') !== -1 || this.expression.indexOf(')') !== -1;
       if (this.expression && !this.result && !hasSymbol) {
         this.expression = '';
       }
       this.expression += value;
-      this.result = calc(this.expression);
+      this.result = this.getExpressionResult(this.expression);
     }
   }
 
@@ -148,11 +281,7 @@ struct Index {
           } else {
             this.expression = value
           }
-          if (this.isOperator(this.expression.substr(this.expression.length - 1, this.expression.length))) {
-            this.result = calc(this.expression.substring(0, this.expression.length - 1))
-          } else {
-            this.result = calc(this.expression)
-          }
+          this.result = this.getExpressionResult(this.expression)
         }
       }
     })

@@ -30,11 +30,11 @@ export struct TitleBarComponent {
   @State selectedIndex: number | undefined = 0
   @StorageLink('deviceList') deviceList: Array<deviceManager.DeviceBasicInfo> = []
   @Link isDistributed: boolean
-  private isShow: boolean = false
-  private startAbilityCallBack: (key: string) => void = () => {
+  isShow: boolean = false
+  startAbilityCallBack: (key: string) => void = () => {
   }
   private dialogController: CustomDialogController | null = null
-  private remoteDeviceModel: RemoteDeviceModel = new RemoteDeviceModel()
+  remoteDeviceModel: RemoteDeviceModel = new RemoteDeviceModel()
   onSelectedIndexChange = async (index: number | undefined) => {
     Logger.info(TAG, `selectedIndexChange`)
     this.selectedIndex = index

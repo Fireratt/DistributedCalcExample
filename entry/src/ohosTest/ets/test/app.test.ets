@@ -126,6 +126,123 @@ export default function appTest() {
     })
 
     /**
+     * Square功能
+     */
+    it(BUNDLE + 'Square_001', 0, async (done: Function) => {
+      logger.info(TAG, `${BUNDLE}Square_001 begin`);
+      await driver.assertComponentExist(ON.id('C'));
+      let clear = await driver.findComponent(ON.id('C'));
+      await clear.click();
+      await driver.assertComponentExist(ON.id('5'));
+      let five = await driver.findComponent(ON.id('5'));
+      await driver.assertComponentExist(ON.id('S'));
+      let square = await driver.findComponent(ON.id('S'));
+      await five.click();
+      await square.click();
+      await driver.delayMs(1000);
+      await driver.assertComponentExist(ON.id('expression'));
+      let expressionText = await driver.findComponent(ON.id('expression'));
+      let expression = await expressionText.getText();
+      expect(expression === '25').assertTrue();
+      logger.info(TAG, `${BUNDLE}Square_001 end`);
+      done();
+    })
+
+    /**
+     * Percent功能
+     */
+    it(BUNDLE + 'Percent_001', 0, async (done: Function) => {
+      logger.info(TAG, `${BUNDLE}Percent_001 begin`);
+      await driver.assertComponentExist(ON.id('C'));
+      let clear = await driver.findComponent(ON.id('C'));
+      await clear.click();
+      await driver.assertComponentExist(ON.id('5'));
+      let five = await driver.findComponent(ON.id('5'));
+      await driver.assertComponentExist(ON.id('0'));
+      let zero = await driver.findComponent(ON.id('0'));
+      await driver.assertComponentExist(ON.id('%'));
+      let percent = await driver.findComponent(ON.id('%'));
+      await five.click();
+      await zero.click();
+      await percent.click();
+      await driver.delayMs(1000);
+      await driver.assertComponentExist(ON.id('expression'));
+      let expressionText = await driver.findComponent(ON.id('expression'));
+      let expression = await expressionText.getText();
+      expect(expression === '0.5').assertTrue();
+      logger.info(TAG, `${BUNDLE}Percent_001 end`);
+      done();
+    })
+
+    /**
+     * Parentheses功能
+     */
+    it(BUNDLE + 'Parentheses_001', 0, async (done: Function) => {
+      logger.info(TAG, `${BUNDLE}Parentheses_001 begin`);
+      await driver.assertComponentExist(ON.id('C'));
+      let clear = await driver.findComponent(ON.id('C'));
+      await clear.click();
+      await driver.assertComponentExist(ON.id('('));
+      let leftParenthesis = await driver.findComponent(ON.id('('));
+      await driver.assertComponentExist(ON.id(')'));
+      let rightParenthesis = await driver.findComponent(ON.id(')'));
+      await driver.assertComponentExist(ON.id('7'));
+      let seven = await driver.findComponent(ON.id('7'));
+      await driver.assertComponentExist(ON.id('+'));
+      let add = await driver.findComponent(ON.id('+'));
+      await driver.assertComponentExist(ON.id('8'));
+      let eight = await driver.findComponent(ON.id('8'));
+      await driver.assertComponentExist(ON.id('*'));
+      let mul = await driver.findComponent(ON.id('*'));
+      await driver.assertComponentExist(ON.id('4'));
+      let four = await driver.findComponent(ON.id('4'));
+      await driver.assertComponentExist(ON.id('2'));
+      let two = await driver.findComponent(ON.id('2'));
+      await driver.assertComponentExist(ON.id('='));
+      let equal = await driver.findComponent(ON.id('='));
+      await leftParenthesis.click();
+      await seven.click();
+      await mul.click();
+      await four.click();
+      await add.click();
+      await eight.click();
+      await rightParenthesis.click();
+      await mul.click();
+      await two.click();
+      await equal.click();
+      await driver.delayMs(1000);
+      await driver.assertComponentExist(ON.id('expression'));
+      let expressionText = await driver.findComponent(ON.id('expression'));
+      let expression = await expressionText.getText();
+      expect(expression === '72').assertTrue();
+      logger.info(TAG, `${BUNDLE}Parentheses_001 end`);
+      done();
+    })
+
+    /**
+     * SquareRoot功能
+     */
+    it(BUNDLE + 'SquareRoot_001', 0, async (done: Function) => {
+      logger.info(TAG, `${BUNDLE}SquareRoot_001 begin`);
+      await driver.assertComponentExist(ON.id('C'));
+      let clear = await driver.findComponent(ON.id('C'));
+      await clear.click();
+      await driver.assertComponentExist(ON.id('9'));
+      let nine = await driver.findComponent(ON.id('9'));
+      await driver.assertComponentExist(ON.id('R'));
+      let squareRoot = await driver.findComponent(ON.id('R'));
+      await nine.click();
+      await squareRoot.click();
+      await driver.delayMs(1000);
+      await driver.assertComponentExist(ON.id('expression'));
+      let expressionText = await driver.findComponent(ON.id('expression'));
+      let expression = await expressionText.getText();
+      expect(expression === '3').assertTrue();
+      logger.info(TAG, `${BUNDLE}SquareRoot_001 end`);
+      done();
+    })
+
+    /**
      * 简单混合运算
      */
     it(BUNDLE + 'Operation_001', 0, async (done: Function) => {

@@ -12,7 +12,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { obtainImgLevel, obtainImg, obtainImgL } from '../model/ImageList'
+import { obtainImgFunctions, obtainImgLevel, obtainImg, obtainImgL } from '../model/ImageList'
 
 interface ImageList {
   image: Resource
@@ -21,7 +21,7 @@ interface ImageList {
 
 @Component
 export struct ButtonComponentHorizontal {
-  private onInputValue: (result: string) => void = () => {
+  onInputValue: (result: string) => void = () => {
   }
 
   build() {
@@ -32,22 +32,44 @@ export struct ButtonComponentHorizontal {
             Button({ type: ButtonType.Normal }) {
               Image(item.image)
                 .height('100%')
-                .aspectRatio(index !== undefined && index < 2 ? 1 : 0.5)
+                .aspectRatio(item.value === '=' ? 0.5 : 1)
                 .objectFit(ImageFit.Contain)
             }
             .id(item.value)
             .width('100%')
             .height('100%')
             .borderRadius(20)
-            .backgroundColor(index !== undefined && index < 2 ? '#33007DFF' : '#007DFF')
+            .backgroundColor(item.value === '=' ? '#007DFF' : '#33007DFF')
             .onClick(() => {
               this.onInputValue(item.value)
             })
           }
           .rowStart(index !== undefined ? index : 0)
-          .rowEnd(index !== undefined && index === 2 ? (index !== undefined ? index + 1 : 0) : (index !== undefined ? index : 0))
+          .rowEnd(index !== undefined ? index : 0)
           .columnStart(4)
           .columnEnd(4)
+        })
+        ForEach(obtainImgFunctions(), (item: ImageList, index: number | undefined) => {
+          GridItem() {
+            Button({ type: ButtonType.Normal }) {
+              Image(item.image)
+                .height('100%')
+                .aspectRatio(1)
+                .objectFit(ImageFit.Contain)
+            }
+            .id(item.value)
+            .width('100%')
+            .height('100%')
+            .borderRadius(20)
+            .backgroundColor('#33007DFF')
+            .onClick(() => {
+              this.onInputValue(item.value)
+            })
+          }
+          .rowStart(index !== undefined ? index : 0)
+          .rowEnd(index !== undefined ? index : 0)
+          .columnStart(5)
+          .columnEnd(5)
         })
         ForEach(obtainImgLevel(), (item:ImageList, index) => {
           GridItem() {
@@ -73,7 +95,7 @@ export struct ButtonComponentHorizontal {
       .width('80%')
       .columnsGap(10)
       .rowsGap(10)
-      .columnsTemplate('1fr 1fr 1fr 1fr 1fr')
+      .columnsTemplate('1fr 1fr 1fr 1fr 1fr 1fr')
       .rowsTemplate('1fr 1fr 1fr 1fr')
     }
     .padding(10)
